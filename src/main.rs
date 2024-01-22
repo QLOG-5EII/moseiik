@@ -121,6 +121,7 @@ unsafe fn l1_x86_sse2(im1: &RgbImage, im2: &RgbImage) -> i32 {
         _mm_load_si128,    //SSE2
         _mm_sad_epu8,      //SSE2
     };
+    
 
     let stride = 128 / 8;
 
@@ -342,6 +343,10 @@ pub fn compute_mosaic(args: Options) {
     target.lock().unwrap().save(args.output).unwrap();
 }
 
+pub fn load_image(image_path: &str) -> RgbImage {
+    ImageReader::open(image_path).unwrap().decode().unwrap().into_rgb8()
+    }
+
 fn main() {
     let args = Options::parse();
     compute_mosaic(args);
@@ -349,23 +354,86 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+   use super::*;
+    
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
-        // TODO
-        assert!(false);
+	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-1.png");
+    	let result = unsafe {l1_x86_sse2(&im1, &im2)};
+    	assert_eq!(result, 0);//verifie si la distance est nulle pour la même image
+
+	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-2.png");
+    	let result = unsafe {l1_x86_sse2(&im1, &im2)};
+    	assert_ne!(result, 0);//verifie si la distance est non nulle pour des images différentes
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+    	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-1.png");
+    	let result = unsafe {l1_neon(&im1, &im2)};
+    	assert_eq!(result, 0);//verifie si la distance est nulle pour la même image
+
+	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-2.png");
+    	let result = unsafe {l1_neon(&im1, &im2)};
+    	assert_ne!(result, 0);//verifie si la distance est non nulle pour des images différentes
     }
 
     #[test]
     fn unit_test_generic() {
-        // TODO
-        assert!(false);
+	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-1.png");
+    	let result = l1_generic(&im1, &im2);
+    	assert_eq!(result, 0);//verifie si la distance est nulle pour la même image
+    	
+    	let im1 = load_image("./assets/tiles-small/tile-1.png");
+    	let im2 = load_image("./assets/tiles-small/tile-2.png");
+    	let result = l1_generic(&im1, &im2);
+    	assert_ne!(result, 0);//verifie si la distance est non nulle pour la même image
     }
+    
+    #[test]
+    fn unit_test_prepare_tile() {
+        // Dossier contenant des images de test
+        let images_folder = "./assets";
+        let tile_size = Size {width: 10, height: 10};
+        let verbose = false;
+        
+        // Appel de la fonction et vérification du résultat
+        let result = &prepare_tiles(images_folder, &tile_size, verbose).unwrap();
+        for tile in result {
+        	assert_eq!(tile.width(), tile_size.width);
+               assert_eq!(tile.height(), tile_size.height);
+        }
+    }
+    
+    #[test]
+    fn unit_test_prepare_target() {
+    
+    let image_path = "./assets/tiles-small/tile-1.png";
+    let reference = load_image("./assets/tiles-small/tile-1.png");
+    let scale = 2;
+    let tile_size = Size { width: 10, height: 10};
+
+    // Appel de la fonction et vérification du résultat
+    match prepare_target(image_path, scale, &tile_size) {
+        Ok(result) => {
+            // Vérifiez que la largeur et la hauteur sont correctes après redimensionnement
+            assert_eq!(result.width(), reference.width() - reference.width() % tile_size.width);
+            assert_eq!(result.height(), reference.height() - reference.height() % tile_size.height);
+
+            // Vérifiez que l'image a été rognée à une taille multiple de la taille des tuiles
+            assert_eq!(result.width() % reference.width(), 0);
+            assert_eq!(result.height() % reference.height(), 0);
+        }
+        Err(err) => {
+            panic!("{}", err);
+        }
+    }
+}
 }
