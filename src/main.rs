@@ -342,6 +342,10 @@ pub fn compute_mosaic(args: Options) {
     target.lock().unwrap().save(args.output).unwrap();
 }
 
+pub fn load_image(path: &str) -> RgbImage {
+        ImageReader::open(path).unwrap().decode().unwrap().into_rgb8()
+    }
+
 fn main() {
     let args = Options::parse();
     compute_mosaic(args);
@@ -349,23 +353,100 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn unit_test_x86() {
-        // TODO
-        assert!(false);
+    fn test_unit_l1_x86_sse2() {
+    	// Test same images
+    	let img1 = load_image("assets/tiles-small/tile-4.png");
+    	let img2 = load_image("assets/tiles-small/tile-4.png");
+	let dist = unsafe { l1_x86_sse2(&img1, &img2) };
+    	assert_eq!(dist, 0);
+
+    	// Test different images
+    	let img3 = load_image("assets/tiles-small/tile-3.png");
+    	let img4 = load_image("assets/tiles-small/tile-4.png");
+	let dist = unsafe { l1_x86_sse2(&img3, &img4) };
+    	assert!(dist > 0);
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+
+        // Test same images
+        let img1 = load_image("assets/tiles-small/tile-4.png");
+        let img2 = load_image("assets/tiles-small/tile-4.png");
+        let dist = unsafe{l1_neon(&img1,&img2)};
+        assert_eq!(dist, 0);
+        // Test different images
+        let img3 = load_image("assets/tiles-small/tile-3.png");
+        let img4 = load_image("assets/tiles-small/tile-4.png"); 
+        let dist = unsafe{l1_neon(&img3,&img4)};    
+        assert!(dist > 0);
     }
 
     #[test]
     fn unit_test_generic() {
-        // TODO
-        assert!(false);
+        // Test same images
+        let img1 = load_image("assets/tiles-small/tile-4.png");
+        let img2 = load_image("assets/tiles-small/tile-4.png");
+        let dist = l1_generic(&img1,&img2);
+        assert_eq!(dist, 0);
+
+        // Test different images
+        let img3 = load_image("assets/tiles-small/tile-3.png");
+        let img4 = load_image("assets/tiles-small/tile-4.png");
+        let dist = l1_generic(&img3,&img4);
+        assert!(dist > 0);
+    }
+
+    #[test]
+    fn unit_test_prepare_target() {
+        let image_path = "assets/ground-truth-kit.png";
+        let scale = 2;
+        let tile_size = Size { width: 25, height: 25 }; 
+
+	// Prepare the target image
+        let prepared_image_result = prepare_target(image_path, scale, &tile_size);
+
+        let prepared_image = prepared_image_result.unwrap();
+
+        // Calculate dimensions by the formula provided
+        let cropped_width = 1920 - 1920 % tile_size.width;
+        let cropped_height = 1080 - 1080 % tile_size.height;
+
+        // Multiply by the scale
+        let expected_width = cropped_width * scale;
+        let expected_height = cropped_height * scale;
+
+        assert_eq!(
+        	prepared_image.width(),
+        	expected_width
+    	);
+    	assert_eq!(
+        	prepared_image.height(),
+        	expected_height
+    	);
+    }
+
+    #[test]
+    fn unit_test_prepare_tiles() {
+
+        // Size of tiles (expected)
+        let test_folder = "assets/images";
+        let tile_size = Size { width: 10, height: 10 };
+        let verbose = false;
+
+	//Call of the function to be tested
+        let tiles = &prepare_tiles(test_folder, &tile_size, verbose).unwrap();
+
+	//Verification
+        for tile in tiles {
+            assert_eq!(tile.width(), tile_size.width);
+            assert_eq!(tile.height(), tile_size.height);
+        }
+
     }
 }
