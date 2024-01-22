@@ -1,0 +1,27 @@
+name: Rust
+on:
+  push:
+    branches: [ "main" ]
+env:
+  CARGO_TERM_COLORCreate rust: always
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    strategy:
+        # Creating a matrix for OSs specificities
+        matrix:
+          arch: 
+            - linux/amd64
+            - linux/arm64
+    
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set Up QEMU
+      if: matrix.arch == 'linux/arm64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: ${{matrix.arch}}
+    - name: Run test on ${{matrix.arch}}
+      run: |
+       docker build -t img --platform ${{matrix.arch}} .
+       docker run --rm --platform ${{matrix.arch}} img

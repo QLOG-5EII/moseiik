@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use clap::Parser;
 use image::{
     imageops::{resize, FilterType::Nearest},
@@ -349,23 +351,119 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    #[test]
+    use image::ImageBuffer;
+
+    use super::*;
+
+    /**
+     * TESTS UNITAIRES
+     * Nous avons décidé de séparer les tests unitaires en deux partie pour chaque fonction L1 : 
+     *  - Calcul d'une L1 sur deux images identiques (qui donne donc 0)
+     *  - Calcul d'une L1 sur deux images différentes dont une est une image noire, et l'autre en niveau de gris. 
+     *      Dans ce cas, la L1 devrait être la somme de la valeur des pixels de l'image non-noire. 
+     *      De plus, comme nous travaillons sur des images RBG même pour l'image en niveau de gris,
+     *      nous avons 3 canaux, la L1 est donc calculée sur les 3 canaux.
+     */
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn unit_test_x86() {
-        // TODO
-        assert!(false);
+    #[test]
+    fn unit_test_l1_x86_same_img(){
+        // On se permet d'utiliser unwrap plutôt qu'une structure match.
+        // Il n'y a pas vraiment d'intérêt de capturer les erreurs liées à une mauvaise ouverture de l'image dans les tests unitaires. 
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+    
+        unsafe {
+            assert_eq!(l1_x86_sse2(&img1, &img2), 0)
+        }
     }
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[test]
+    fn unit_test_l1_x86_different_img(){
+
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+    
+        unsafe {
+            // Pour la valeur de la L1 sur un seul canal, il suffit de sommer la valeur de tous les pixels. Pour la vignette tile-1, on obtient 5724.
+            // Il faut multiplier par 3 car la L1 se fait sur les 3 canaux RGB, 
+            // et l'image état en niveau de gris, les pixels sur les 3 canaux ont la même valeur.
+            assert_eq!(l1_x86_sse2(&img1, &img2), 5724*3)  
+        }
+    }
+
     #[cfg(target_arch = "aarch64")]
-    fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+    #[test]
+    fn unit_test_l1_aarch64_same_img(){
+
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+    
+        unsafe {
+            assert_eq!(l1_neon(&img1, &img2), 0)
+        }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    #[test]
+    fn unit_test_l1_aarch64_different_img(){
+
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+    
+        unsafe {
+            assert_eq!(l1_neon(&img1, &img2), 5724*3)
+        }
     }
 
     #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(false);
+    fn unit_test_l1_generic_same_img(){
+
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+    
+        assert_eq!(l1_generic(&img1, &img2), 0)
+        
+    }
+
+    #[test]
+    fn unit_test_l1_generic_different_img(){
+
+        let img1 = ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let img2 = ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+
+        assert_eq!(l1_generic(&img1, &img2), 5724*3)
+    }
+
+
+    #[test]
+    fn unit_test_prepare_tiles(){
+
+        let s = Size {
+            height: 5,
+            width: 5,
+        };
+
+        let result = prepare_tiles("./assets/tiles-small/", &s, false).unwrap();
+        let mut is_ok = true;
+
+        
+        for elt in result{
+            is_ok &= (elt.width() == 5 && elt.height() == 5)
+        }
+
+        assert!(is_ok);
+    }
+    #[test]
+    fn unit_test_prepare_target(){
+        let scaling = 1;
+        let s = Size{
+            height:5,
+            width:5
+        };
+        let result = prepare_target("./assets/tiles-small/tile-1.png", scaling, &s).unwrap();
+        
+        assert!(result.width() == 5 && result.height() == 5);
     }
 }
