@@ -1,0 +1,40 @@
+# Définition du workflow de CI pour une architecture multiplateforme
+name: Multi-Arch CI
+
+# Déclenché à chaque push sur le dépôt
+on: [push]
+
+jobs:
+  # Job principal pour la construction et les tests
+  build-and-test:
+    # S'exécute sur une machine Ubuntu
+    runs-on: ubuntu-latest
+    
+    continue-on-error: true #permet de continuer de run les tests même si une archi fail
+    # Stratégie de matrice pour exécuter le job sur différentes architectures
+    strategy:
+      matrix:
+        arch: 
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+    # Étape pour récupérer le code du dépôt
+    - name: Checkout code
+      uses: actions/checkout@v4
+    # Étape pour configurer QEMU en fonction de la matrice spécifiée
+    - name: Set up QEMU
+      if: matrix.arch == 'linux/arm64'
+    # Utilisation de l'action docker/setup-qemu-action version 1
+      uses: docker/setup-qemu-action@v3
+    # Configuration des plates-formes QEMU en fonction de la matrice (arm64 ou amd64)
+      with:
+        platforms: ${{ matrix.arch }}
+    # Étape pour exécuter les tests pour chaque architecture
+    - name: Run test on ${{ matrix.arch }}
+      run: |
+        echo "start build on ${{ matrix.arch }}"  # Message de début du build 
+        docker build -t img --platform ${{ matrix.arch }} .  # build de l'image Docker 
+        echo "start run on ${{ matrix.arch }}"  # Message de début de l'exécution 
+        docker run --rm --platform ${{ matrix.arch }} img   # Exécution des tests sur arm64
+        

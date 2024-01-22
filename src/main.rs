@@ -349,23 +349,83 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+use super::*;
+use image::{
+    imageops::{resize, FilterType::Nearest},
+    io::Reader as ImageReader,
+    GenericImage, GenericImageView, RgbImage,
+};
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn unit_test_x86() {
-        // TODO
-        assert!(false);
+    fn test_l1_sse2_same_image() {
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_x86_sse2(&im1, &im2) }, 0);//la difference de la même image est nulle
     }
-
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_l1_sse2_diff_image() {
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_x86_sse2(&im1, &im2) }, 5724*3); //différence avec une image noir = à la somme des pixels de l'image de base soit 5724 et on multiplie par trois parce que on a converti en rgb
+    }
     #[test]
     #[cfg(target_arch = "aarch64")]
-    fn unit_test_aarch64() {
+    fn test_aarch64_l1_neon_same_image() {
         // TODO
-        assert!(false);
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_neon(&im1, &im2) }, 0);//la difference de la même image est nulle
+
+    }
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aarch64_l1_neon_diff_image() {
+        // TODO
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_neon(&im1, &im2) }, 5724*3);//différence avec une image noir = à la somme des pixels de l'image de base soit 5724 et on multiplie par trois parce que on a converti en rgb
+
     }
 
     #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(false);
+    fn test_unit_generic_same_image() {
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_generic(&im1, &im2) }, 0); //la difference de la même image est nulle
     }
+    #[test]
+    fn test_unit_generic_diff_image() {
+        let im1= ImageReader::open("./assets/tiles-small/tile-1.png").unwrap().decode().unwrap().to_rgb8();
+        let im2 =ImageReader::open("./assets/tile-full-black.png").unwrap().decode().unwrap().to_rgb8();
+        assert_eq!(unsafe { l1_generic(&im1, &im2) }, 5724*3);//différence avec une image noir = à la somme des pixels de l'image de base soit 5724 et on multiplie par trois parce que on a converti en rgb
+    }
+
+    #[test]
+    fn test_unit_prepare_tiles() {
+        let s=Size{
+            height:5,
+            width:5,
+        }; //creation d'une taille 5x5 pour vérifier la cohérence de taille
+        let result= prepare_tiles("./assets/tiles-small/",&s,false).unwrap();
+        let mut good =true;
+
+        for i in result{
+            good&=i.width()==5 && i.height()==5 //on vient vérifier et mettre a true si les fichiers sont de la même taille
+        } //on test pour toutes les images
+        assert!(good);
+    }
+
+    #[test]
+    fn test_unit_prepare_target() {
+        let myscale=1;
+        let t=Size{
+            height:5,
+            width:5,
+        };
+
+        let res=prepare_target("./assets/tiles-small/tile-4.png",myscale,&t).unwrap();
+        assert!(res.height()==5 && res.width()==5); // true si la target est d'une taille cohérente
+    }
+
 }
