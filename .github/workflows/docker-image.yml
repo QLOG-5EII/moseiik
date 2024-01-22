@@ -1,0 +1,51 @@
+name: CI pour Moseiik
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build_and_test:
+    strategy:
+      matrix:
+        config:
+        - {
+            name: "Test sur x86_64",
+            os: ubuntu-latest,
+            arch: amd64
+          }
+        - {
+            name: "Test sur arm64",
+            os: ubuntu-latest,
+            arch: aarch64
+          }
+
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name : Install Docker
+      run : |
+        sudo apt-get update
+        sudo apt-get install ca-certificates curl gnupg
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+
+    - name: Mise en place de QEMU
+      if: matrix.config.arch == 'aarch64'
+      run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+    - name: Génération de l'image Docker
+      run: docker build --platform=${{ matrix.config.arch }} -t image -f Dockerfile .
+
+    - name: Exécution de l'image Docker pour les tests
+      run: docker run image cargo test
