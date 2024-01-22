@@ -67,6 +67,9 @@ fn count_available_tiles(images_folder: &str) -> i32 {
 }
 
 fn prepare_tiles(images_folder: &str, tile_size: &Size, verbose: bool) -> Result<Vec<RgbImage>, Box<dyn Error>> {
+    println!("{}", images_folder);
+    println!("{} {}", tile_size.height, tile_size.width);
+    println!("{}", verbose);
     let image_paths = fs::read_dir(images_folder)?;
     let tiles = Arc::new(Mutex::new(Vec::new()));
     let now = Instant::now();
@@ -79,7 +82,7 @@ fn prepare_tiles(images_folder: &str, tile_size: &Size, verbose: bool) -> Result
         pool.execute(move || {
             let tile_result =
                 || -> Result<RgbImage, Box<dyn Error>> { Ok(ImageReader::open(image_path?.path())?.decode()?.into_rgb8()) };
-
+	    
             let tile = match tile_result() {
                 Ok(t) => t,
                 Err(_) => return,
@@ -90,7 +93,7 @@ fn prepare_tiles(images_folder: &str, tile_size: &Size, verbose: bool) -> Result
         });
     }
     pool.join();
-
+        
     println!(
         "\n{} elements in {} seconds",
         tiles.lock().unwrap().len(),
@@ -253,6 +256,7 @@ fn l1(im1: &RgbImage, im2: &RgbImage, simd_flag: bool, verbose: bool) -> i32 {
 }
 
 fn prepare_target(image_path: &str, scale: u32, tile_size: &Size) -> Result<RgbImage, Box<dyn Error>> {
+    println!("scale = {}", scale);
     let target = ImageReader::open(image_path)?.decode()?.into_rgb8();
     let width = target.width();
     let height = target.height();
@@ -280,6 +284,8 @@ pub fn compute_mosaic(args: Options) {
         width: args.tile_size,
         height: args.tile_size,
     };
+    println!("width = {} height = {}", tile_size.width, tile_size.height);
+    println!("nombre de thread = {}", args.num_thread);
 
     let (target_size, target) = match prepare_target(&args.image, args.scaling, &tile_size) {
         Ok(t) => (
@@ -349,23 +355,217 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    // Utiliser les éléments du module principal
+    use super::*;
+
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
-        // TODO
-        assert!(false);
+        // Création d'images factices en niveaux de gris pour le test
+        let im1 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let im2 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+
+	// Itération pour afficher les pixels de image 1
+	for i in im1.iter(){
+		println!("Pixels image 1 {}", i); 
+	}
+	
+        // Appel de la fonction à tester
+        let result = unsafe { l1_x86_sse2(&im1, &im2)};
+
+        // Vérification de la distance de Manhattan attendue
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (0 pour tous les pixels).
+        assert_eq!(result, 0);
+
+        // Autre exemple avec des images ayant des valeurs différentes
+        let im3 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 1, y as u8 + 2, 0]));
+        let result2 = unsafe { l1_x86_sse2(&im1, &im3)};
+
+	// Itération pour afficher les pixels de image 2
+	for i in im3.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+
+	// Itération pour afficher le résultat de la méthode .zip
+	for i in im2.iter().zip(im3.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+	    
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (1 + 2 pour chaque pixel).
+        assert_eq!(result2, 27);
+        
+        let im4 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 2, y as u8 + 2, 0]));
+        let result3 = unsafe {l1_x86_sse2(&im1, &im4)};
+
+	// Itération pour afficher les pixels de image 4
+	for i in im4.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+
+	// Itération pour afficher le résultat de la méthode .zip
+	for i in im2.iter().zip(im4.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+	    
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (2 + 2 pour chaque pixel).
+        assert_eq!(result3, 36);
+        
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+	    
+        // Création d'images factices en niveaux de gris pour le test
+        let im1 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let im2 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+
+	// Itération pour afficher les pixels de image 1
+	for i in im1.iter(){
+		println!("Pixels image 1 {}", i); 
+	}
+	
+        // Appel de la fonction à tester
+        let result = unsafe { l1_neon(&im1, &im2)};
+
+        // Vérification de la distance de Manhattan attendue
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (0 pour tous les pixels).
+        assert_eq!(result, 0);
+
+        // Autre exemple avec des images ayant des valeurs différentes
+        let im3 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 1, y as u8 + 2, 0]));
+        let result2 = unsafe { l1_neon(&im1, &im3)};
+
+	// Itération pour afficher les pixels de image 3
+	for i in im3.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+
+	// Itération pour afficher le résultat de la méthode .zip
+	for i in im2.iter().zip(im3.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (1 + 2 pour chaque pixel).
+        assert_eq!(result2, 27);
+        
+        let im4 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 2, y as u8 + 2, 0]));
+        let result3 = unsafe {l1_neon(&im1, &im4)};
+
+	// Itération pour afficher les pixels de image 4
+	for i in im4.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+
+	// Itération pour afficher le résultat de la méthode .zip
+	for i in im2.iter().zip(im4.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+	    
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (2 + 2 pour chaque pixel).
+        assert_eq!(result3, 36);
+        
     }
+
 
     #[test]
     fn unit_test_generic() {
-        // TODO
-        assert!(false);
+        
+        // Création d'images factices en niveaux de gris pour le test
+        let im1 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+        let im2 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8, y as u8, 0]));
+
+	// Itération pour afficher les pixels de image 1
+	for i in im1.iter(){
+		println!("Pixels image 1 {}", i); 
+	}
+	
+        // Appel de la fonction à tester
+        let result = l1_generic(&im1, &im2);
+
+        // Vérification de la distance de Manhattan attendue
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (0 pour tous les pixels).
+        assert_eq!(result, 0);
+
+        // Autre exemple avec des images ayant des valeurs différentes
+        let im3 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 1, y as u8 + 2, 0]));
+        let result2 = l1_generic(&im1, &im3);
+
+	// Itération pour afficher les pixels de image 3
+	for i in im3.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+	for i in im2.iter().zip(im3.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (1 + 2 pour chaque pixel).
+        assert_eq!(result2, 27);
+        
+        let im4 = image::RgbImage::from_fn(3, 3, |x, y| image::Rgb([x as u8 + 2, y as u8 + 2, 0]));
+        let result3 = l1_generic(&im1, &im4);
+
+	// Itération pour afficher les pixels de image 4
+	for i in im4.iter(){
+		println!("Pixels image 2 {}", i); 
+	}
+	for i in im2.iter().zip(im4.iter()){
+		println!("combinaison {} {}", i.0, i.1); 
+	}
+        // Dans cet exemple, la distance devrait être la somme des différences absolues
+        // entre les composantes de luminance de chaque pixel (2 + 2 pour chaque pixel).
+        assert_eq!(result3, 36);
+        
+    }
+    
+    #[test]
+    fn test_prepare_tiles() {
+        
+        
+        //Chemin du dossier des images
+        let image_folder = "assets/images";
+
+        
+        // Configuration des paramètres de test
+        let tile_size = Size { width: 10, height: 10 };
+        let verbose = false;
+
+        // Appel de la fonction à tester
+        let result = prepare_tiles(image_folder, &tile_size, verbose);
+
+        // Vérification du nombre de tuiles renvoyé
+        //assert_eq!(result.unwrap().len(), 4373);
+        
+        // Vérification de la taille des tuiles
+        for tile in result.unwrap().iter(){
+        	assert_eq!(tile.width(), tile_size.width);
+        	assert_eq!(tile.height(), tile_size.height);
+        }
+    }
+    
+    #[test]
+    fn test_prepare_target() {
+        
+        
+        //chemin du dossier d'images
+        let image_target = "assets/target-small.png";
+
+        
+        // Configuration des paramètres de test
+        let scale = 6;
+        let tile_size = Size { width: 3, height: 3};
+
+        // Appel de la fonction à tester
+        let result = prepare_target(image_target, scale, &tile_size);
+        
+        // Vérification de la taille du target
+        assert_eq!(result.unwrap().dimensions(), ((10-10%tile_size.width)*scale, (10-10%tile_size.height)*scale));
+        
     }
 }
