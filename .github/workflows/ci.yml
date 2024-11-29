@@ -1,0 +1,50 @@
+name: CI for Moseiik
+# Define the name of the workflow as it will appear in the GitHub Actions interface.
+# Marie Dubouays - Thomas Lesaulnier
+on:
+  push:
+    branches:
+      - main
+    # Specify when this workflow will be triggered:
+    # - On any push to the `main` branch.
+    # - When a pull request is opened or updated against the `main` branch.
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # Define a job named `build-and-test` that runs on the latest Ubuntu image.
+
+    strategy:
+      matrix:
+        arch: [linux/amd64, linux/arm64]
+        # Use a matrix strategy to test the workflow against multiple architectures: `amd64` and `arm64`.
+        # This ensures compatibility with different hardware platforms.
+
+    steps:
+      # Step 1: Set up QEMU
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        # This action sets up QEMU for multi-platform support so that Docker can build images for different architectures.
+
+      # Step 2: Check out the repository
+      - name: Check out the repository
+        uses: actions/checkout@v3
+        # Use the GitHub-provided action to clone the repository's code into the workflow environment.
+        # This ensures the latest code is available for the build.
+
+      # Step 3: Build the Docker image locally and load it
+      - name: Build the Docker image locally
+        run: |
+          docker build -f .github/workflows/Dockerfile --platform ${{ matrix.arch }} -t moseiik .
+        # Build the Docker image for the specified architecture (`amd64` or `arm64`) defined in the matrix.
+        # The `--platform` flag ensures the image is built for the correct architecture.
+        # The `-t moseiik` tag is used to label the image with the name `moseiik`.
+
+      # Step 4: Test the locally built Docker image
+      - name: Test the Docker image locally
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm moseiik
+        # Run a container from the locally built Docker image to perform tests.
+        # The `--platform` flag ensures the container runs on the specified architecture.
+        # The `--rm` flag ensures that the container is automatically removed after it stops.
+        # This step validates that the application works correctly in the container for the specified architecture.
