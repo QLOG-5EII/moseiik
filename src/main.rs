@@ -440,22 +440,127 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;           // Import everything from the parent module to use in these tests
+    use image::RgbImage;    // Import the RgbImage struct from the image crate to create images for testing
+
+    // Unit test for x86 architecture, specifically testing with SSE2 SIMD instructions
     #[test]
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] // This ensures the test runs only on x86 or x86_64 architectures
     fn unit_test_x86() {
-        // TODO
-        assert!(true);
+        // Creating two test images of size 10x10 pixels, both with RGB values [10, 20, 30] and [20, 20, 30]
+        let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30])); // The first image with pixel values [10, 20, 30]
+        let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30])); // The second image with pixel values [20, 20, 30]
+
+        // Unsafe block to call SIMD-optimized function l1_x86_sse2
+        unsafe {
+            // Test that the L1 difference function correctly computes the pixel-wise differences
+            // for the red channel only, as it's the only channel that differs.
+            assert_eq!(l1_x86_sse2(&im1, &im2), 1000);  // Expected value is 1000 (only the red channel differs by 10)
+            assert_eq!(l1_x86_sse2(&im1, &im1), 0);     // No difference between the two identical images
+        }
     }
 
+    // Unit test for ARM architecture, specifically testing with NEON SIMD instructions
     #[test]
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(target_arch = "aarch64")] // This ensures the test runs only on ARM 64-bit architectures
     fn unit_test_aarch64() {
-        assert!(true);
+        // Creating two test images of size 10x10 pixels, with RGB values [10, 20, 30] and [20, 20, 30]
+        let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30])); // First image with RGB values [10, 20, 30]
+        let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30])); // Second image with RGB values [20, 20, 30]
+
+        // Unsafe block to call SIMD-optimized function l1_neon
+        unsafe {
+            // Test that the L1 difference function correctly computes the pixel-wise differences
+            assert_eq!(l1_neon(&im1, &im2), 1000);  // Expected value is 1000 (only the red channel differs by 10)
+            assert_eq!(l1_neon(&im1, &im1), 0);     // No difference between the two identical images
+        }
     }
 
+    // Unit test for the generic L1 difference function (non-SIMD)
     #[test]
     fn unit_test_generic() {
-        // TODO
-        assert!(true);
+        // Creating two test images of size 10x10 pixels with RGB values [10, 20, 30] and [20, 20, 30]
+        let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30])); // First image with pixel values [10, 20, 30]
+        let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30])); // Second image with pixel values [20, 20, 30]
+
+        // Test the generic (non-SIMD) L1 difference function
+        assert_eq!(l1_generic(&im1, &im2), 1000);   // Expected result is 1000, based on pixel differences
+        assert_eq!(l1_generic(&im1, &im1), 0);      // No difference between identical images
     }
+
+    // Unit test to ensure that tiles are loaded and resized correctly from the tile directory
+    #[test]
+    fn unit_test_prepare_tiles() {
+        // Path to the folder containing tile images
+        let tile_path = "assets/tiles-small";
+        // Defining the desired tile size (10x10 pixels)
+        let tile_size = Size {
+            height: 10,
+            width: 10,
+        };
+
+        // Call the function to prepare the tiles from the folder
+        let result = prepare_tiles(tile_path, &tile_size, false);
+
+        // Check if the result is a success
+        if let Ok(tiles) = &result {
+            // Ensure all tiles have the correct dimensions
+            for tile in tiles {
+                // Verify that the width and height of each tile match the expected size
+                assert_eq!(tile.width(), tile_size.width);      // Check tile width
+                assert_eq!(tile.height(), tile_size.height);    // Check tile height
+            }
+        // If the result is an error, the test fails
+        } else {
+            panic!("Tile preparation failed"); // Test failure message
+        }
+    }
+
+    // Unit test for the prepare_target function, which prepares the target image for mosaicking
+    #[test]
+    fn unit_test_prepare_target() {
+        // Path for a temporary test image file
+        let temp_image_path = "test_target_image.png";
+
+        // Original dimensions of the image (30x30 pixels)
+        let original_width = 30;
+        let original_height = 30;
+
+        // Create a simple red image for testing purposes (all pixels set to red)
+        let test_image = RgbImage::from_pixel(original_width, original_height, image::Rgb([255, 0, 0]));
+        // Save the created image to the specified path
+        test_image.save(temp_image_path).unwrap();
+
+        // Define the tile size (10x10 pixels)
+        let tile_size = Size { width: 10, height: 10 };
+        // Define the scale factor (image will be scaled by a factor of 2)
+        let scale = 2;
+
+        // Call the function to prepare the target image with the scaling factor
+        let result = prepare_target(temp_image_path, scale, &tile_size);
+
+        // Remove the temporary image after the test
+        std::fs::remove_file(temp_image_path).unwrap();
+
+        // Verify that the resulting image matches the expected dimensions and content
+        if let Ok(resized_image) = result {
+            // Calculate the expected dimensions of the resized image
+            let expected_width = original_width * scale - (original_width * scale) % tile_size.width;
+            let expected_height = original_height * scale - (original_height * scale) % tile_size.height;
+
+            // Check that the width and height match the expected dimensions
+            assert_eq!(resized_image.width(), expected_width);      // Check width
+            assert_eq!(resized_image.height(), expected_height);    // Check height
+
+            // Verify that the resized image is filled with the expected red color (RGB [255, 0, 0])
+            for pixel in resized_image.pixels() {
+                assert_eq!(pixel[0], 255); // Check red channel
+                assert_eq!(pixel[1], 0);   // Check green channel
+                assert_eq!(pixel[2], 0);   // Check blue channel
+            }
+        } else {
+            panic!("prepare_target failed"); // Test failure if preparation failed
+        }
+    }
+
 }
