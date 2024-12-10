@@ -447,32 +447,157 @@ mod tests {
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] // This ensures the test runs only on x86 or x86_64 architectures
     fn unit_test_x86() {
-        // Creating two test images of size 10x10 pixels, both with RGB values [10, 20, 30] and [20, 20, 30]
-        let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30])); // The first image with pixel values [10, 20, 30]
-        let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30])); // The second image with pixel values [20, 20, 30]
-
-        // Unsafe block to call SIMD-optimized function l1_x86_sse2
-        unsafe {
-            // Test that the L1 difference function correctly computes the pixel-wise differences
-            // for the red channel only, as it's the only channel that differs.
-            assert_eq!(l1_x86_sse2(&im1, &im2), 1000);  // Expected value is 1000 (only the red channel differs by 10)
-            assert_eq!(l1_x86_sse2(&im1, &im1), 0);     // No difference between the two identical images
+        // Test Case 1: Identical images (no difference)
+        // This test ensures that the function correctly identifies two identical images
+        // and returns a difference of 0.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            unsafe {
+                assert_eq!(l1_x86_sse2(&im1, &im1), 0); // No difference expected
+            }
         }
+
+        // Test Case 2: Uniform difference in one channel (Red)
+        // This test evaluates the function's ability to compute the L1 distance
+        // when all pixels differ uniformly in the red channel by 10 units.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30]));
+            unsafe {
+                assert_eq!(l1_x86_sse2(&im1, &im2), 1000);
+                // 10x10 pixels * |20 - 10| = 1000 total difference
+            }
+        }
+
+        // Test Case 3: Uniform difference in all channels
+        // This test checks the computation of L1 distance when all pixels differ
+        // uniformly across all three color channels.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 30, 40]));
+            unsafe {
+                assert_eq!(l1_x86_sse2(&im1, &im2), 3000);
+                // 10x10 pixels * (|20-10| + |30-20| + |40-30|) = 3000 total difference
+            }
+        }
+
+        // Test Case 4: Completely different images
+        // This test ensures the function handles extreme cases where one image is
+        // completely black (0, 0, 0) and the other is completely white (255, 255, 255).
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([0, 0, 0]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([255, 255, 255]));
+            unsafe {
+                assert_eq!(l1_x86_sse2(&im1, &im2), 76500);
+                // 10x10 pixels * (255 + 255 + 255) = 76500 total difference
+            }
+        }
+
+        // Test Case 5: Images of different sizes (should panic or handle gracefully)
+        // This test verifies that the function correctly handles or panics when given
+        // two images of different dimensions. This is important to ensure robustness.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(5, 5, image::Rgb([20, 30, 40]));
+            let result = std::panic::catch_unwind(|| unsafe {
+                l1_x86_sse2(&im1, &im2)
+            });
+            assert!(result.is_err());
+            // Expect a panic due to size mismatch between the two images
+        }
+
+        // Test Case 6: Large images with minimal difference
+        // This test evaluates the performance and correctness of the function on a
+        // large image with only a single pixel differing by 1 unit in the red channel.
+        // It ensures that the function does not introduce unnecessary errors.
+        {
+            let im1 = RgbImage::from_pixel(1000, 1000, image::Rgb([10, 20, 30]));
+            let mut im2 = RgbImage::from_pixel(1000, 1000, image::Rgb([10, 20, 30]));
+            im2.put_pixel(500, 500, image::Rgb([11, 20, 30])); // Change one pixel
+            unsafe {
+                assert_eq!(l1_x86_sse2(&im1, &im2), 1);
+                // Only one pixel differs by 1 unit, total difference = 1
+            }
+        }
+
     }
+
 
     // Unit test for ARM architecture, specifically testing with NEON SIMD instructions
     #[test]
     #[cfg(target_arch = "aarch64")] // This ensures the test runs only on ARM 64-bit architectures
     fn unit_test_aarch64() {
-        // Creating two test images of size 10x10 pixels, with RGB values [10, 20, 30] and [20, 20, 30]
-        let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30])); // First image with RGB values [10, 20, 30]
-        let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30])); // Second image with RGB values [20, 20, 30]
+        // Test Case 1: Identical images (no difference)
+        // This test ensures that the function correctly identifies two identical images
+        // and returns a difference of 0.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            unsafe {
+                assert_eq!(l1_neon(&im1, &im1), 0); // No difference expected
+            }
+        }
 
-        // Unsafe block to call SIMD-optimized function l1_neon
-        unsafe {
-            // Test that the L1 difference function correctly computes the pixel-wise differences
-            assert_eq!(l1_neon(&im1, &im2), 1000);  // Expected value is 1000 (only the red channel differs by 10)
-            assert_eq!(l1_neon(&im1, &im1), 0);     // No difference between the two identical images
+        // Test Case 2: Uniform difference in one channel (Red)
+        // This test evaluates the function's ability to compute the L1 distance
+        // when all pixels differ uniformly in the red channel by 10 units.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 20, 30]));
+            unsafe {
+                assert_eq!(l1_neon(&im1, &im2), 1000);
+                // 10x10 pixels * |20 - 10| = 1000 total difference
+            }
+        }
+
+        // Test Case 3: Uniform difference in all channels
+        // This test checks the computation of L1 distance when all pixels differ
+        // uniformly across all three color channels.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([20, 30, 40]));
+            unsafe {
+                assert_eq!(l1_neon(&im1, &im2), 3000);
+                // 10x10 pixels * (|20-10| + |30-20| + |40-30|) = 3000 total difference
+            }
+        }
+
+        // Test Case 4: Completely different images
+        // This test ensures the function handles extreme cases where one image is
+        // completely black (0, 0, 0) and the other is completely white (255, 255, 255).
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([0, 0, 0]));
+            let im2 = RgbImage::from_pixel(10, 10, image::Rgb([255, 255, 255]));
+            unsafe {
+                assert_eq!(l1_neon(&im1, &im2), 76500);
+                // 10x10 pixels * (255 + 255 + 255) = 76500 total difference
+            }
+        }
+
+        // Test Case 5: Images of different sizes (should panic or handle gracefully)
+        // This test verifies that the function correctly handles or panics when given
+        // two images of different dimensions. This is important to ensure robustness.
+        {
+            let im1 = RgbImage::from_pixel(10, 10, image::Rgb([10, 20, 30]));
+            let im2 = RgbImage::from_pixel(5, 5, image::Rgb([20, 30, 40]));
+            let result = std::panic::catch_unwind(|| unsafe {
+                l1_neon(&im1, &im2)
+            });
+            assert!(result.is_err());
+            // Expect a panic due to size mismatch between the two images
+        }
+
+        // Test Case 6: Large images with minimal difference
+        // This test evaluates the performance and correctness of the function on a
+        // large image with only a single pixel differing by 1 unit in the red channel.
+        // It ensures that the function does not introduce unnecessary errors.
+        {
+            let im1 = RgbImage::from_pixel(1000, 1000, image::Rgb([10, 20, 30]));
+            let mut im2 = RgbImage::from_pixel(1000, 1000, image::Rgb([10, 20, 30]));
+            im2.put_pixel(500, 500, image::Rgb([11, 20, 30])); // Change one pixel
+            unsafe {
+                assert_eq!(l1_neon(&im1, &im2), 1);
+                // Only one pixel differs by 1 unit, total difference = 1
+            }
         }
     }
 
