@@ -31,5 +31,4 @@ ENTRYPOINT ["bash", "-c", "\
 git clone https://github.com/PapyPouley/moseiik.git /app/moseiik && \
 mv /assets /app/moseiik/assets && \
 cd /app/moseiik && \
-git checkout UnitTest && \
 cargo test --release --"]
