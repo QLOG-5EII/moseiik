@@ -10,7 +10,7 @@ mod tests {
     fn test_x86() {
         let args = Options {
             image: "assets/kit.jpeg".to_string(),
-            tiles: "assets/tiles-small/".to_string(),
+            tiles: "assets/images/".to_string(),
             output: "output_x86.png".to_string(),
             tile_size: 5,
             scaling: 1,
@@ -23,7 +23,7 @@ mod tests {
         compute_mosaic(args); //Génère l'image faite avec les Tiles
 
         let generated = image::open("output_x86.png").expect("Failed to open generated image");
-        let ground_truth = image::open("expected.png").expect("Failed to open expected image");
+        let ground_truth = image::open("assets/output.png").expect("Failed to open expected image");
 
         assert_eq!(
             generated, ground_truth,
@@ -36,7 +36,7 @@ mod tests {
     fn test_aarch64() {
         let args = Options {
             image: "assets/kit.jpeg".to_string(),
-            tiles: "assets/tiles-small/".to_string(),
+            tiles: "assets/images/".to_string(),
             output: "output_aarch64.png".to_string(),
             tile_size: 5,
             scaling: 1,
@@ -49,7 +49,7 @@ mod tests {
         compute_mosaic(args); //Génère l'image faite avec les Tiles
 
         let generated = image::open("output_aarch64.png").expect("Failed to open generated image");
-        let ground_truth = image::open("expected.png").expect("Failed to open the expected image");
+        let ground_truth = image::open("assets/output.png").expect("Failed to open the expected image");
 
         assert_eq!(
             generated, ground_truth,
@@ -61,7 +61,7 @@ mod tests {
     fn test_generic() {
         let args = Options {
             image: "assets/kit.jpeg".to_string(),
-            tiles: "assets/tiles-small/".to_string(),
+            tiles: "assets/images/".to_string(),
             output: "output_generic.png".to_string(),
             tile_size: 5,
             scaling: 1,
@@ -74,7 +74,7 @@ mod tests {
         compute_mosaic(args); //Génère l'image faite avec les Tiles
 
         let generated = image::open("output_generic.png").expect("Failed to open generated image");
-        let ground_truth = image::open("expected.png").expect("Failed to open the expected image");
+        let ground_truth = image::open("assets/output.png").expect("Failed to open the expected image");
 
         assert_eq!(
             generated, ground_truth,
