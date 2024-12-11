@@ -22,13 +22,15 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /app
 
 # Download and extract test images into /assets
-RUN wget https://nasext-vaader.insa-rennes.fr/ietr-vaader/moseiik_test_images.zip -P /tmp \
-    && unzip /tmp/moseiik_test_images.zip -d /assets \
-    && rm /tmp/moseiik_test_images.zip
+RUN mkdir ./tmp \
+    && wget https://nasext-vaader.insa-rennes.fr/ietr-vaader/moseiik_test_images.zip -P ./tmp \
+    && unzip ./tmp/moseiik_test_images.zip -d ./assets \
+    && rm ./tmp/moseiik_test_images.zip
 
 # Set entrypoint to clone the repo, move assets, and run tests
 ENTRYPOINT ["bash", "-c", "\
 git clone https://github.com/PapyPouley/moseiik.git /app/moseiik && \
-mv /assets /app/moseiik/assets && \
-cd /app/moseiik && \
+mv ./assets/images ./moseiik/assets && \
+rm -r ./assets && \
+cd ./moseiik && \
 cargo test --release --"]
