@@ -33,5 +33,4 @@ git clone https://github.com/PapyPouley/moseiik.git /app/moseiik && \
 mv ./assets/images ./moseiik/assets && \
 rm -r ./assets && \
 cd ./moseiik && \
-git checkout UnitTest && \
 cargo test --release --"]
