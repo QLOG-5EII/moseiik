@@ -17,7 +17,7 @@ mod tests {
     use super::*;
 
     /*
-     * Test 1: Verify that `l1_generic` returns a difference of 0 for two identical images
+     * Test 1: Verify that 'l1_generic' returns a difference of 0 for two identical images
      */
     #[test]
     fn unit_test_l1_generic_identical_images() {
@@ -41,7 +41,7 @@ mod tests {
     }
 
     /*
-     * Test 2: Verify that `l1_generic` calculates the correct difference 
+     * Test 2: Verify that 'l1_generic' calculates the correct difference 
      * for two completely different images of the same size
      */
     #[test]
@@ -71,7 +71,7 @@ mod tests {
     }
 
     /*
-     * Test 3: Verify that `l1_generic` calculates the correct difference 
+     * Test 3: Verify that 'l1_generic' calculates the correct difference 
      * for two images differing by only a single pixel
      */
     #[test]
@@ -100,7 +100,7 @@ mod tests {
     }
 
     /*
-     * Test 4: Verify that `l1_generic` calculates the correct difference for images of size 1x1 pixel
+     * Test 4: Verify that 'l1_generic' calculates the correct difference for images of size 1x1 pixel
      */
     #[test]
     fn unit_test_l1_generic_single_pixel() {
