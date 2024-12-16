@@ -1,118 +1,127 @@
+/* 
+ * Project   : moseiik
+ * Authors   : Faucheux Valentin and Plumejeau Maxime
+ * File      : unit testing of l1_generic function
+ * Comments  : verfiy correct behavior of l1_generic function for the following cases :
+ *             - 2 identical images
+ *             - 2 completely different images
+ *             - 2 slightly different images
+ *             - 2 different 1x1 pixel images
+ */
+
 use crate::main::*;
 use image::RgbImage;
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /*
+     * Test 1: Verify that `l1_generic` returns a difference of 0 for two identical images
+     */
     #[test]
     fn unit_test_l1_generic_identical_images() {
-        // Crée une image de 2x2 pixels
+
+        // Create a 2x2 pixels image
         let mut im1 = RgbImage::new(2, 2);
 
-        // Remplir les deux images avec la même couleur
+        // Fill image im1 with one color
         let color = image::Rgb([100, 150, 200]);
         for pixel in im1.pixels_mut() {
             *pixel = color;
         }
 
+        // Clone image im1 in image im2
         let im2 = im1.clone();
 
-        // La différence attendue doit être 0, car les images sont identiques
+        // Verify that the difference is 0 for identical images im1 and im2
         let expected_diff = 0;
         let result = l1_generic(&im1, &im2);
         assert_eq!(result, expected_diff, "Test failed for identical images.");
     }
 
-    // Test 2: Test avec deux images totalement différentes
+    /*
+     * Test 2: Verify that `l1_generic` calculates the correct difference 
+     * for two completely different images of the same size
+     */
     #[test]
     fn unit_test_l1_generic_completely_different_images() {
-        // Crée une image de 2x2 pixels
+
+        // Create two 2x2 pixels images
         let mut im1 = RgbImage::new(2, 2);
         let mut im2 = RgbImage::new(2, 2);
 
-        // Remplir im1 avec une couleur
+        // Fill image im1 with one color
         let color1 = image::Rgb([100, 150, 200]);
         for pixel in im1.pixels_mut() {
             *pixel = color1;
         }
 
-        // Remplir im2 avec une couleur différente
+        // Fill image im2 with a different color
         let color2 = image::Rgb([50, 100, 150]);
         for pixel in im2.pixels_mut() {
             *pixel = color2;
         }
 
-        // Calcul de la différence pour chaque pixel :
-        // Pour chaque pixel, la différence absolue est :
-        // Rouge: |100 - 50| = 50
-        // Vert: |150 - 100| = 50
-        // Bleu: |200 - 150| = 50
-        // Donc pour 4 pixels : 50 + 50 + 50 = 150 (par pixel), multiplié par 4 pixels = 600
+        // Verify that the difference between images im1 and im2 is 600
+        // Expected difference = sum of absolute differences across all pixels for RGB channels
         let expected_diff = 600;
         let result = l1_generic(&im1, &im2);
-        assert_eq!(
-            result, expected_diff,
-            "Test failed for completely different images."
-        );
+        assert_eq!(result, expected_diff, "Test failed for completely different images.");
     }
 
-    // Test 3: Test avec des images légèrement différentes
+    /*
+     * Test 3: Verify that `l1_generic` calculates the correct difference 
+     * for two images differing by only a single pixel
+     */
     #[test]
     fn unit_test_l1_generic_slightly_different_images() {
-        // Crée une image de 2x2 pixels
+
+        // Create a 2x2 pixel image
         let mut im1 = RgbImage::new(2, 2);
 
-        // Remplir im1 avec une couleur
+        // Fill image im1 with one color
         let color1 = image::Rgb([100, 150, 200]);
         for pixel in im1.pixels_mut() {
             *pixel = color1;
         }
 
-        let color2 = image::Rgb([110, 150, 200]); // Seul le rouge change
+        // Clone image im1 in image im2 and slightly modify a single pixel of image im2
+        let color2 = image::Rgb([110, 150, 200]);
         let mut im2 = im1.clone();
         im2.put_pixel(0, 0, color2);
 
-        // La différence attendue :
-        // Pour le pixel modifié :
-        // Rouge: |110 - 100| = 10
-        // Vert: |150 - 150| = 0
-        // Bleu: |200 - 200| = 0
-        // Différe|nce totale = 10 + 0 + 0 + (3 autres pixels identiques = 0) = 10
+        // Verify that the difference between images im1 and im2 is 10 
+        // Expected difference = sum of absolute differences across all pixels for RGB channels
         let expected_diff = 10;
         let result = l1_generic(&im1, &im2);
-        assert_eq!(
-            result, expected_diff,
-            "Test failed for slightly different images."
+        assert_eq!(result, expected_diff, "Test failed for slightly different images."
         );
     }
 
-    // Test 4: Test avec des images de taille 1x1
+    /*
+     * Test 4: Verify that `l1_generic` calculates the correct difference for images of size 1x1 pixel
+     */
     #[test]
     fn unit_test_l1_generic_single_pixel() {
-        // Crée deux images de 1x1 pixel
+
+        // Create two 1x1 pixel images
         let mut im1 = RgbImage::new(1, 1);
         let mut im2 = RgbImage::new(1, 1);
 
-        // Remplir im1 avec une couleur
+        // Set a color for image im1
         let color1 = image::Rgb([100, 150, 200]);
         im1.put_pixel(0, 0, color1);
 
-        // Remplir im2 avec une couleur différente
+        // Set a different color for image im2
         let color2 = image::Rgb([50, 100, 150]);
         im2.put_pixel(0, 0, color2);
 
-        // Calcul de la différence :
-        // Rouge: |100 - 50| = 50
-        // Vert: |150 - 100| = 50
-        // Bleu: |200 - 150| = 50
-        // Différence totale = 50 + 50 + 50 = 150
+        // Verify that the difference between images im1 and im2 is 150
+        // Expected difference = sum of absolute differences for RGB channels
         let expected_diff = 150;
         let result = l1_generic(&im1, &im2);
-        assert_eq!(
-            result, expected_diff,
-            "Test failed for single pixel images."
+        assert_eq!(result, expected_diff, "Test failed for single pixel images."
         );
     }
 }
