@@ -1,5 +1,5 @@
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use moseiik::main::*;
+use crate::main::*;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use image::RgbImage;
 

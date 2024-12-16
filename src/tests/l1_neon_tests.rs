@@ -1,7 +1,10 @@
+#[cfg(target_arch = "aarch64")]
 use crate::main::*;
+#[cfg(target_arch = "aarch64")]
 use image::RgbImage;
 
 #[cfg(test)]
+#[cfg(target_arch = "aarch64")]
 mod tests {
     use super::*;
 
