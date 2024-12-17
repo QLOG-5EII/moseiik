@@ -1,3 +1,12 @@
+/* 
+ * Project   : moseiik
+ * Authors   : Faucheux Valentin and Plumejeau Maxime
+ * File      : unit testing of prepare_target function
+ * Comments  : verfiy correct behavior of prepare_target function for the following cases :
+ *             - Different image sizes
+ *             - Different scalings
+ */
+
 use crate::main::*;
 use image::ImageReader;
 
@@ -5,11 +14,15 @@ use image::ImageReader;
 mod tests {
     use super::*;
 
+    /*
+     * Test 1: Verify that 'prepare_target' returns an image with the correct dimensions
+     * for different image sizes and scalings
+     */
     #[test]
     fn unit_test_prepare_target() {
         use std::path::Path;
 
-        // Fonction pour calculer les dimensions de sortie attendues
+        // Function to calculate the expected output dimensions
         fn calculate_output_dimensions(
             image_width: u32,
             image_height: u32,
@@ -22,7 +35,7 @@ mod tests {
             (output_image_width, output_image_height)
         }
 
-        // Liste des cas de test
+        // Test cases
         let test_cases = vec![
             (
                 "./assets/kit.jpeg",
@@ -51,14 +64,14 @@ mod tests {
         ];
 
         for (image_path, scaling, tile_size) in test_cases {
-            // Vérifier que le fichier existe
+            // Check if the image file exists
             assert!(
                 Path::new(image_path).exists(),
                 "Le fichier image {} est introuvable.",
                 image_path
             );
 
-            // Charger l'image et obtenir ses dimensions
+            // Load the target image and get its dimensions
             let target = ImageReader::open(image_path)
                 .expect("Impossible d'ouvrir l'image")
                 .decode()
@@ -71,7 +84,7 @@ mod tests {
             let (expected_width, expected_height) =
                 calculate_output_dimensions(image_width, image_height, scaling, &tile_size);
 
-            // Tester la fonction `prepare_target`
+            // Test the prepare_target function
             match prepare_target(image_path, scaling, &tile_size) {
                 Ok(result) => {
                     let result_size = Size {

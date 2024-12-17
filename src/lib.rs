@@ -1,4 +1,10 @@
+/* 
+ * Project   : moseiik
+ * Authors   : Faucheux Valentin and Plumejeau Maxime
+ * File      : lib.rs
+ */
 pub mod main;
+
 
 #[cfg(test)]
 mod tests {
