@@ -1,42 +1,40 @@
-
-# Project   : moseiik
-# Authors   : Faucheux Valentin and Plumejeau Maxime
-# File      : Dockerfile designed for project testing
-# Comments  : build and run a docker image launching unit and integration tests of the project
-
 # Base image
-FROM ubuntu:latest
+FROM alpine:latest
 
-# Install useful dependencies for test images retrieving from nasext-vaader and rust/cargo installation
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       git \
-       wget \
-       unzip \
-       curl \
-       build-essential \
-       ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Installer les dépendances nécessaires
+RUN apk add --no-cache \
+    bash \
+    wget \
+    unzip \
+    curl \
+    build-base \
+    ca-certificates \
+    && update-ca-certificates
 
-# Install Rust and Cargo via rustup
+# Installer Rust via rustup
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Add Cargo to PATH
+# Ajouter Cargo au PATH
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Set the working directory
-WORKDIR /app
+# Définir le répertoire de travail
+WORKDIR /app/moseiik
 
-# Download and extract test images into /assets
+# Copier les fichiers sources
+COPY ../Cargo.toml ../Cargo.lock ./
+COPY ../src ./src
+COPY ../assets ./assets
+COPY ../tests ./tests
+
+# Télécharger et extraire les images de test
 RUN mkdir ./tmp \
     && wget https://nasext-vaader.insa-rennes.fr/ietr-vaader/moseiik_test_images.zip -P ./tmp \
-    && unzip ./tmp/moseiik_test_images.zip -d ./assets \
+    && unzip ./tmp/moseiik_test_images.zip -d /app/assets \
     && rm ./tmp/moseiik_test_images.zip
 
-# Set entrypoint to clone the repository, move tests images from ./assets to ./moseiik/assets and run tests
-ENTRYPOINT ["bash", "-c", " \
-    git clone https://github.com/PapyPouley/moseiik.git /app/moseiik && \
-    mv ./assets/images ./moseiik/assets && \
-    rm -r ./assets && \
-    cd ./moseiik && \
-    cargo test --release --"]
+# Copier les images dans le bon dossier et nettoyer
+RUN cp -r /app/assets/images ./assets \
+    && rm -rf /app/assets
+
+# Définir l'entrée du conteneur
+ENTRYPOINT ["cargo", "test", "--release", "--"]
