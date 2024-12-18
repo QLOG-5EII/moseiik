@@ -1,0 +1,67 @@
+
+# Project   : moseiik
+# Authors   : Faucheux Valentin and Plumejeau Maxime
+# File      : CI configuration file for github workflow 
+# Comments  : lauch unit and integration tests of the project on linux/amd64 and linux/arm64 platforms
+
+name: CI-Moseiik
+
+on:
+  push:
+    branches:
+      - main         # Trigger workflow on push events to the main branch
+  pull_request:
+    branches:
+      - main         # Trigger workflow on pull request events targeting the main branch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest                          # Use the latest Ubuntu runner for the job
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]        # Define a matrix to test on multiple platforms
+    steps:
+
+      # Step 1: Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Step 3: Install QEMU (for cross-platform emulation)
+      - name: Install QEMU (for cross-platform emulation)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      # Step 4: Cache Docker layers (in order to reduce job time)
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.platform }}-${{ hashFiles('**/Dockerfile') }}
+          restore-keys: ${{ runner.os }}-buildx-${{ matrix.platform }}-
+
+      # Step 5: Build Docker image from /docker/Dockerfile for the specified platform using previously cached layers
+      #         Save updated cache layers --> cache layers contain the built image : 
+      #                                       useful dependencies
+      #                                       rust and cargo
+      #                                       test images from nasext-vaader
+      - name: Build Docker image
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            -t moseiik-test:latest \
+            -f docker/Dockerfile --load \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max .
+
+      # Step 6: Run tests from built Docker image on the specified platform
+      - name: Run tests
+        run: |
+          docker run \
+            --platform ${{ matrix.platform }} \
+            moseiik-test:latest

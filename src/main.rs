@@ -14,9 +14,9 @@ use threadpool::ThreadPool;
 use threadpool_scope::scope_with;
 
 #[derive(Debug, Parser)]
-struct Size {
-    width: u32,
-    height: u32,
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Parser, Debug)]
@@ -65,11 +65,28 @@ fn count_available_tiles(images_folder: &str) -> i32 {
     };
 }
 
-fn prepare_tiles(
+pub fn prepare_tiles(
     images_folder: &str,
     tile_size: &Size,
     verbose: bool,
 ) -> Result<Vec<RgbImage>, Box<dyn Error>> {
+    //Adding test to prevent incorrect folder
+    if !fs::metadata(images_folder)
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
+        return Err(format!(
+            "Folder '{}' does not exist or is not accessible.",
+            images_folder
+        )
+        .into());
+    }
+
+    //Test to prevent incorrect tiles size
+    if tile_size.height <= 0 || tile_size.width <= 0 {
+        return Err(format!("Tiles must have a size > 0").into());
+    }
+
     let nb_tiles: usize = count_available_tiles(images_folder) as usize;
 
     let mut tile_names: Vec<_> = fs::read_dir(images_folder)
@@ -178,7 +195,7 @@ unsafe fn l1_x86_avx2(im1: &RgbImage, im2: &RgbImage) -> i32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse2")]
-unsafe fn l1_x86_sse2(im1: &RgbImage, im2: &RgbImage) -> i32 {
+pub unsafe fn l1_x86_sse2(im1: &RgbImage, im2: &RgbImage) -> i32 {
     // Only works if data is 16 bytes-aligned, which should be the case.
     // In case of crash due to unaligned data, swap _mm_load_si128 for _mm_loadu_si128.
     use std::arch::x86_64::{
@@ -230,7 +247,7 @@ unsafe fn l1_x86_sse2(im1: &RgbImage, im2: &RgbImage) -> i32 {
     return result;
 }
 
-fn l1_generic(im1: &RgbImage, im2: &RgbImage) -> i32 {
+pub fn l1_generic(im1: &RgbImage, im2: &RgbImage) -> i32 {
     im1.iter()
         .zip(im2.iter())
         .fold(0, |res, (a, b)| res + i32::abs((*a as i32) - (*b as i32)))
@@ -238,7 +255,7 @@ fn l1_generic(im1: &RgbImage, im2: &RgbImage) -> i32 {
 
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
-unsafe fn l1_neon(im1: &RgbImage, im2: &RgbImage) -> i32 {
+pub unsafe fn l1_neon(im1: &RgbImage, im2: &RgbImage) -> i32 {
     use std::arch::aarch64::uint8x16_t;
     use std::arch::aarch64::vabdq_u8; // Absolute subtract
     use std::arch::aarch64::vaddlvq_u8; // horizontal add
@@ -327,7 +344,7 @@ unsafe fn get_optimal_l1(simd_flag: bool, verbose: bool) -> unsafe fn(&RgbImage,
     return FN_POINTER;
 }
 
-fn prepare_target(
+pub fn prepare_target(
     image_path: &str,
     scale: u32,
     tile_size: &Size,
@@ -440,22 +457,5 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn unit_test_x86() {
-        // TODO
-        assert!(true);
-    }
 
-    #[test]
-    #[cfg(target_arch = "aarch64")]
-    fn unit_test_aarch64() {
-        assert!(true);
-    }
-
-    #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(true);
-    }
 }
