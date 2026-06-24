@@ -1,5 +1,10 @@
 # Projet Qualité Logiciel
 
+![Docker Tests](https://github.com/Agazart/moseiik/actions/workflows/docker-test.yml/badge.svg)
+![CodeQL](https://github.com/Agazart/moseiik/actions/workflows/codeql.yml/badge.svg)
+![Rust](https://img.shields.io/badge/Rust-Cargo-orange?logo=rust)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 Moseiik est un projet qui permet de générer des mosaïques d'images à partir d'un corpus de vignettes (appelées tiles) et d'une image de référence (appelée target).
 
 Le code source se trouve dans le fichier `src/main.rs` et peut être exécuté en lançant depuis le dossier `moseiik` la commande :
@@ -92,7 +97,7 @@ Attention, pour que l'image soit utilisable avec les deux architectures il faut 
 
 Une fois le Dockerfile créé, vous pouvez le compiler et exécuter les tests. Votre ordinateur étant probablement sous architecture x86, il ne sera pas capable d'exécuter les tests ARM (ou inversement si vous utilisez par exemple un MacBook récent ou une Raspberry Pi). Une possibilité est d'installer Qemu pour émuler l'architecture non supportée par votre machine. 
 
-L'installation de Qemu pour tester toute les architectures est optionnelle, mais cela peut permettre d'identifier des bugs dans les tests avant de passer à l'intégration dans GitHub. Docker Desktop est capable de d'utiliser cette couche d'émulation de manière transparente.
+L'installation de Qemu pour tester toute les architectures est optionnelle, mais cela peut permettre d'identifier des bugs dans les tests avant de passer à l'intégration dans GitHub. Docker Desktop est capable d'utiliser cette couche d'émulation de manière transparente.
 
 Pour executer les tests sur une architecture spécifique, les options `-t` et `--platform` de la commande [docker build](https://docs.docker.com/engine/reference/commandline/build/) peuvent vous être utiles. `-t` permet de donner un nom à votre image, nom qui sera nécessaire pour lancer l'image avec la commande [docker run](https://docs.docker.com/engine/reference/commandline/run/). L'option `--platform` (également disponible pour [docker run](https://docs.docker.com/engine/reference/commandline/run/)) vous permet de spécifier l'architecture cible si celle-ci est supportée par votre machine ou que Qemu est installé. 
 
