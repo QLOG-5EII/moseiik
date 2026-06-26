@@ -349,23 +349,127 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
-        // TODO
-        assert!(false);
+        //test avec la meme image
+        let image1 = RgbImage::from_raw(
+                    1,
+                    6,
+                    vec![
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                    ]
+                ).unwrap();
+
+        unsafe {assert_eq!(l1_x86_sse2(&image1, &image1),0)};
+
+        //test avec deux images differentes
+        let image2 = RgbImage::from_raw(
+            1,
+            6,
+            vec![
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 200,
+            ]
+        ).unwrap();
+
+        unsafe {assert_eq!(l1_x86_sse2(&image1, &image2),198)};
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+        //test avec la meme image
+        let image1 = RgbImage::from_raw(
+                    1,
+                    6,
+                    vec![
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                    ]
+                ).unwrap();
+
+        unsafe {assert_eq!(l1_neon(&image1, &image1),0)};
+
+        //test avec deux images differentes
+        let image2 = RgbImage::from_raw(
+            1,
+            6,
+            vec![
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 200,
+            ]
+        ).unwrap();
+
+        unsafe {assert_eq!(l1_neon(&image1, &image2),198)};
     }
 
     #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(false);
+    fn unit_test_l1_generic() {
+        //test avec la meme image
+        let image1 = RgbImage::from_raw(
+                    1,
+                    3,
+                    vec![
+                        0, 1, 2,
+                        0, 1, 2,
+                        0, 1, 2,
+                    ]
+                ).unwrap();
+
+        assert_eq!(l1_generic(&image1, &image1),0);
+
+        //test avec deux images differentes
+        let image2 = RgbImage::from_raw(
+            1,
+            3,
+            vec![
+                0, 1, 2,
+                0, 1, 2,
+                0, 1, 200,
+            ]
+        ).unwrap();
+
+        assert_eq!(l1_generic(&image1, &image2),198);
+    }
+
+    #[test]
+    fn unit_test_prepare_tiles() {
+        //test de prepare_tiles
+
+        let tile_size = Size { width: 5, height: 5 };
+        
+        let tiles=prepare_tiles("assets/tiles-small", &tile_size, false).unwrap();
+
+        for tile in tiles {
+            assert_eq!(tile.width(),5);
+            assert_eq!(tile.height(),5);
+        }
+    }
+    #[test]
+    fn unit_test_prepare_target() {
+         let tile_size = Size { width: 5, height: 5 };
+        let target=prepare_target("assets/target-small.png", 1, &tile_size).unwrap();
+
+        assert!(target.height() % tile_size.height == 0);
+
     }
 }
