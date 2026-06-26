@@ -13,6 +13,8 @@ use std::{
 };
 use threadpool::ThreadPool;
 use threadpool_scope::scope_with;
+use sha2::{Sha256, Digest};
+
 
 #[derive(Debug, Parser)]
 struct Size {
@@ -64,6 +66,12 @@ fn count_available_tiles(images_folder: &str) -> i32 {
         Ok(t) => return t.count() as i32,
         Err(_) => return -1,
     };
+}
+
+ pub fn hash_image(img: &RgbImage) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(img.as_raw());
+    format!("{:x}", hasher.finalize())
 }
 
 fn prepare_tiles(images_folder: &str, tile_size: &Size, verbose: bool) -> Result<Vec<RgbImage>, Box<dyn Error>> {
@@ -347,25 +355,105 @@ fn main() {
     compute_mosaic(args);
 }
 
+
 #[cfg(test)]
 mod tests {
-    #[test]
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    fn unit_test_x86() {
-        // TODO
-        assert!(false);
-    }
-
+    use super::*;
+    use image::io::Reader as ImageReader;
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+        let image1 = ImageReader::open("assets/tiles-small/tile-4.png")
+            .unwrap()
+            .decode()
+            .unwrap()
+            .into_rgb8();
+
+        let image2 = ImageReader::open("assets/tiles-small/tile-1.png")
+            .unwrap()
+            .decode()
+            .unwrap()
+            .into_rgb8();
+
+        let result = unsafe { l1_neon(&image1, &image2) };
+
+        assert_eq!(result,2049);
+
     }
 
     #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(false);
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn unit_test_x86() {
+        let image1 = ImageReader::open("assets/tiles-small/tile-4.png")
+            .unwrap()
+            .decode()
+            .unwrap()
+            .into_rgb8();
+
+        let image2 = ImageReader::open("assets/tiles-small/tile-1.png")
+            .unwrap()
+            .decode()
+            .unwrap()
+            .into_rgb8();
+
+        let result = unsafe { l1_x86_sse2(&image1, &image2) };
+
+        assert_eq!(result,2049);
     }
+
+    #[test]
+    fn unit_test_l1_generic() {
+        use image::io::Reader as ImageReader;
+
+    let image1 = ImageReader::open("assets/tiles-small/tile-4.png")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+
+    let image2 = ImageReader::open("assets/tiles-small/tile-1.png")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+
+    let f = unsafe { get_optimal_l1(true, true) };
+    let result = unsafe { f(&image1, &image2) };
+
+    assert_eq!(result,2049);
+    }
+    
+    #[test]
+    fn unit_test_prepare_target()-> Result<(), Box<dyn std::error::Error>>{
+        let tile_size = Size { width: 5, height: 5 };
+
+        let img = prepare_target(
+            "assets/tiles-small/tile-4.png",
+            1,
+            &tile_size,
+        )?;
+
+        let hash = hash_image(&img);
+        println!("hash: {}", hash);
+
+        assert_eq!(hash,"308b8b86bd1842ae9395b10cddc99ac647e2189418f8a1581039995951915769");
+        Ok(())
+    }
+    
+     #[test]
+     fn unit_test_prepare_tiles()  -> Result<(), Box<dyn std::error::Error>> {
+        let tile_size = Size { width: 5, height: 5 };
+
+        let img = prepare_tiles(
+            "assets/tiles-small", 
+            &tile_size,false
+        )?;
+
+
+        let hash = hash_image(&img[0]);
+        assert_eq!(hash,"36d96438caf0b1ef4fb29c5e6fa2775a7af4d7b16457cc94657475e93a21ba85");
+        Ok(())
+
+     }
 }
+
