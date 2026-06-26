@@ -347,25 +347,127 @@ fn main() {
     compute_mosaic(args);
 }
 
+
 #[cfg(test)]
 mod tests {
+    use image::RgbImage;
+    use super::*;
+
+    fn make_img_1()-> RgbImage{
+        RgbImage::from_raw(
+            4,
+            4,
+            vec![
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                50, 50, 80,
+            ],
+        )
+        .unwrap()
+    }
+
+    fn make_img_2()-> RgbImage{
+        RgbImage::from_raw(
+            4,
+            4,
+            vec![
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+                15, 20, 25,
+                40, 45, 60,
+                80, 70, 90, 
+                100, 100, 130,
+            ],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn unit_test_generic() {
+        let im1 = make_img_1();
+        let im2 = make_img_2();
+
+        assert_eq!(l1_generic(&im1, &im1), 0);
+        assert_eq!(l1_generic(&im1, &im2), 150);
+    }
+
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
-        // TODO
-        assert!(false);
+        let im1 = make_img_1();
+        let im2 = make_img_2();
+
+        let generic = l1_generic(&im1, &im2);
+        let simd = unsafe{l1_x86_sse2(&im1, &im2)};
+
+        assert_eq!(simd, generic);  // Expected fail, the SIMD version is not working properly, it seems to be a problem.
+                                    // Like the other fonctions l1_x86_sse2(&im1, &im2) should return 150 as a result but it returns 0.
     }
 
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
-        // TODO
-        assert!(false);
+        let im1 = make_img_1();
+        let im2 = make_img_2();
+
+        let generic = l1_generic(&im1, &im2);
+        let simd = unsafe{l1_neon(&im1, &im2)};
+
+        assert_eq!(simd, generic);
     }
 
     #[test]
-    fn unit_test_generic() {
-        // TODO
-        assert!(false);
+    fn unit_test_prepare_tiles_size(){
+        let tile_size = Size {
+            width: 5,
+            height: 5,
+        };
+
+        let tiles = prepare_tiles("assets/tiles-small", &tile_size, false)
+            .expect("prepare_tiles failed");
+        
+        assert!(!tiles.is_empty());
+
+        for tile in tiles {
+            assert_eq!(tile.width(), 5);
+            assert_eq!(tile.height(), 5);
+        }
+    }
+
+    #[test]
+    fn unit_test_prepare_target_size_is_multiple_of_tile_size() {
+        let tile_size = Size {
+            width: 5,
+            height: 5,
+        };
+
+        let target = prepare_target("assets/target-small.png", 1, &tile_size)
+            .expect("prepare_target failed");
+        
+        assert_eq!(target.width() % 5, 0);
+        assert_eq!(target.height() % 5, 0);
     }
 }
