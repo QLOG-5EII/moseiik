@@ -1,0 +1,60 @@
+name: moseiik robustness guaranty
+
+on:
+  push:
+
+jobs:
+  test-x86:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check architecture
+        run: |
+          ARCH=$(uname -m)
+          echo "$ARCH"
+          [ "$ARCH" = "x86_64" ]
+
+      - name: Fetch project
+        run: |
+          git clone https://github.com/jamailia-pm/moseiik.git
+          cd moseiik
+
+      - name: Fetch images
+        run: |
+          curl -O https://nasext-vaader.insa-rennes.fr/ietr-vaader/moseiik_test_images.zip
+          unzip moseiik_test_images.zip
+          mv images tests/tiles
+
+      - name: Run tests
+        run: |
+          docker build -t localtest .
+          docker run localtest
+
+  test-arm:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check architecture
+        run: |
+          ARCH=$(uname -m)
+          echo "$ARCH"
+          [ "$ARCH" = "aarch64" ]
+
+      - name: Download project
+        run: |
+          git clone https://github.com/jamailia-pm/moseiik.git
+
+      - name: Fetch images
+        run: |
+          curl -O https://nasext-vaader.insa-rennes.fr/ietr-vaader/moseiik_test_images.zip
+          unzip moseiik_test_images.zip
+          mv images tests/tiles          
+
+      - name: Run tests
+        run: |
+          docker build -t localtest .
+          docker run localtest

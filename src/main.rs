@@ -347,25 +347,230 @@ fn main() {
     compute_mosaic(args);
 }
 
+
+
 #[cfg(test)]
 mod tests {
+
+    use super::*;
+
+    // Test l1_x86_sse2
+    //////////////////////////////////////////
+    // Avec la même image
     #[test]
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn unit_test_x86() {
         // TODO
-        assert!(false);
+        println!("Test unitaire l1_x86_sse2 avec la même image");
+        let image1 = ImageReader::open("assets/kit.jpeg")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+
+        unsafe {assert_eq!(l1_x86_sse2(&image1, &image1), 0);}
     }
 
+
+    // Avec des images de 6 pixels
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn unit_test_x86_2() {
+
+        println!("Test unitaire l1_x86_sse2 avec 6 pixels");
+        let image1 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                2,2,2
+            ]
+        ).unwrap();
+
+        let image2 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                3,3,3
+            ]
+        ).unwrap();
+
+        unsafe {assert_eq!(l1_x86_sse2(&image1, &image2), 3)}
+    }
+    //////////////////////////////////////////
+
+    // Test l1_neon
+    //////////////////////////////////////////
+    // Avec la même image
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn unit_test_aarch64() {
+        println!("Test unitaire l1_neon avec la même image");
         // TODO
-        assert!(false);
+        let image1 = ImageReader::open("assets/kit.jpeg")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+
+        unsafe {assert_eq!(l1_neon(&image1, &image1), 0);}
     }
 
+    // Avec des images de 6 pixels
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn unit_test_aarch64_2() {
+
+        println!("Test unitaire l1_neon avec 6 pixels");
+        let image1 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                2,2,2
+            ]
+        ).unwrap();
+
+        let image2 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                3,3,3
+            ]
+        ).unwrap();
+
+        unsafe {assert_eq!(l1_neon(&image1, &image2), 3);}
+    }
+    //////////////////////////////////////////
+
+    // Test l1_generic
+    //////////////////////////////////////////
+    // Avec la même image
     #[test]
     fn unit_test_generic() {
         // TODO
-        assert!(false);
+        println!("Test unitaire l1_generic avec la même image");
+        let image1 = ImageReader::open("assets/kit.jpeg")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+        assert_eq!(l1_generic(&image1, &image1), 0);
+    }
+
+    // Avec des images de 6 pixels
+    #[test]
+    fn unit_test_generic_2() {
+        println!("Test unitaire l1_generic avec 6 pixels");
+        let image1 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                2,2,2
+            ]
+        ).unwrap();
+
+        let image2 = RgbImage::from_raw(
+            2,
+            3,
+            vec![
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                1,1,1,
+                3,3,3
+            ]
+        ).unwrap();
+
+        assert_eq!(l1_generic(&image1, &image2), 3);
+    }
+    //////////////////////////////////////////
+
+
+
+    // Test prepare_target
+    #[test]
+    fn unit_prepare_target() {
+        // TODO
+
+    println!("Test image à rogner pour devenir divisible par gabarit");
+    let gabarit = Size {
+        width: 25,
+        height: 25,
+    };
+
+    let original = ImageReader::open("assets/kit.jpeg")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .into_rgb8();
+
+    let width_original = original.width();
+    let height_original = original.height();
+
+    let expected_width =
+        (width_original - width_original % gabarit.width)*2;
+
+    let expected_height =
+        (height_original - height_original % gabarit.height)*2;
+
+    let image = prepare_target(
+        "assets/kit.jpeg",
+        2,
+        &gabarit
+    )
+    .unwrap();
+
+
+    assert_eq!(image.width(), expected_width);
+    assert_eq!(image.height(), expected_height);
+    }
+
+    // Test prepare_tiles
+    #[test]
+    fn test_prepare_tiles() {
+
+        println!("Test decouper images a taille de gabarit");
+        let gabarit = Size {
+            width: 20,
+            height: 20,
+        };
+
+        let tiles = prepare_tiles(
+            "assets/tiles-small",
+            &gabarit,
+            false
+        ).unwrap();
+
+        assert!(tiles.len() > 0);
+
+        for tile in tiles {
+            assert_eq!(tile.width(), 20);
+            assert_eq!(tile.height(), 20);
+        }
     }
 }

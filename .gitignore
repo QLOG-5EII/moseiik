@@ -1,3 +1,4 @@
 /target
 rustfmt.toml
 assets/images
+tests/reference/tiles
